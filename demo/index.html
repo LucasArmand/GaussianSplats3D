@@ -446,7 +446,27 @@
     function setConversionCheckIconVisibility(visible) {
       document.getElementById('check-icon').style.display = visible ? 'block' : 'none';
     }
+    function readFiles(files) {
+      const fileReader = new FileReader();
+      const fileContents = [];
 
+      function readNextFile(index) {
+        if (index >= files.length) {
+          return Promise.resolve(fileContents);
+        }
+
+        return new Promise((resolve, reject) => {
+          fileReader.onload = (event) => {
+            fileContents.push(event.target.result);
+            resolve(readNextFile(index + 1));
+          };
+          fileReader.onerror = (error) => reject(error);
+          fileReader.readAsArrayBuffer(files[index]);
+        });
+      }
+
+      return readNextFile(0);
+    }
     window.viewSplat = function() {
 
       const viewFile = document.getElementById("viewFile");
@@ -509,9 +529,31 @@
           return;
         }
       }
-
       const viewFileName = viewFile.files[0].name.trim();
       const format = GaussianSplats3D.LoaderUtils.sceneFormatFromPath(viewFileName);
+
+      //const splatBufferDataArray = await readFiles(viewFile.files);
+      /*
+      try {
+        const fileReader = new FileReader();
+        fileReader.onload = function(){
+          try {
+            splatBufferDataArray.push(fileReader.result);
+            //runViewer(fileReader.result, format, alphaRemovalThreshold, cameraUpArray, cameraPositionArray, cameraLookAtArray, antialiased, sceneIs2D, sphericalHarmonicsDegree);
+          } catch (e) {
+            console.error(e);
+            setViewError("Could not load scene.");
+          }
+        }
+        setViewStatus("Loading scene...");
+        for (let splatFile of viewFile.files) {
+          fileReader.readAsArrayBuffer(splatFile);
+        }
+      } catch (e) {
+        console.error(e);
+        setViewError("Could not view scene.");
+      }
+      */
 
       currentAlphaRemovalThreshold = alphaRemovalThreshold;
       currentCameraUpArray = cameraUpArray;
@@ -520,23 +562,14 @@
       currentAntialiased = antialiased;
       current2DScene = sceneIs2D;
       currentSphericalHarmonicsDegree = sphericalHarmonicsDegree;
-
-      try {
-        const fileReader = new FileReader();
-        fileReader.onload = function(){
-          try {
-           runViewer(fileReader.result, format, alphaRemovalThreshold, cameraUpArray, cameraPositionArray, cameraLookAtArray, antialiased, sceneIs2D, sphericalHarmonicsDegree);
-          } catch (e) {
-            console.error(e);
-            setViewError("Could not view scene.");
-          }
+      readFiles(viewFile.files).then((splatBufferDataArray) => {
+        try {
+          runViewer(splatBufferDataArray, format, alphaRemovalThreshold, cameraUpArray, cameraPositionArray, cameraLookAtArray, antialiased, sceneIs2D, sphericalHarmonicsDegree);
+        } catch (e) {
+          console.error(e);
+          setViewError("Could not view scene.");
         }
-        setViewStatus("Loading scene...");
-        fileReader.readAsArrayBuffer(viewFile.files[0]);
-      } catch (e) {
-        console.error(e);
-        setViewError("Could not view scene.");
-      }
+      });
     }
 
     function setViewError(msg) {
@@ -563,7 +596,7 @@
       }
     });
 
-    function runViewer(splatBufferData, format, alphaRemovalThreshold, cameraUpArray, cameraPositionArray, cameraLookAtArray, antialiased, sceneIs2D, sphericalHarmonicsDegree) {
+    function runViewer(splatBufferDataArray, format, alphaRemovalThreshold, cameraUpArray, cameraPositionArray, cameraLookAtArray, antialiased, sceneIs2D, sphericalHarmonicsDegree) {
       const viewerOptions = {
         'cameraUp': cameraUpArray,
         'initialCameraPosition': cameraPositionArray,
@@ -576,14 +609,19 @@
       const splatBufferOptions = {
         'splatAlphaRemovalThreshold': alphaRemovalThreshold
       };
-      const splatBufferPromise = fileBufferToSplatBuffer({data: splatBufferData}, format, alphaRemovalThreshold, 0,
-                                                          undefined, undefined, undefined, undefined, sphericalHarmonicsDegree);
-      splatBufferPromise.then((splatBuffer) => {
+      let splatBufferPromises = [];
+      for (let splatBufferData of splatBufferDataArray) {
+        const splatBufferPromise = fileBufferToSplatBuffer({data: splatBufferData}, format, alphaRemovalThreshold, 0,
+                                                    undefined, undefined, undefined, undefined, sphericalHarmonicsDegree);
+        splatBufferPromises.push(splatBufferPromise);
+      }
+
+      Promise.all(splatBufferPromises).then((splatBuffers) => {
         document.getElementById("demo-content").style.display = 'none';
         document.body.style.backgroundColor = "#000000";
         history.pushState("ViewSplat", null);
         const viewer = new GaussianSplats3D.Viewer(viewerOptions);
-        viewer.addSplatBuffers([splatBuffer], [splatBufferOptions])
+        viewer.addSplatBuffers(splatBuffers, splatBuffers.map(() => splatBufferOptions))
         .then(() => {
             viewer.start();
         });
