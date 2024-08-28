@@ -18,7 +18,7 @@ export class SplatMaterial3D {
      * @return {THREE.ShaderMaterial}
      */
     static build(dynamicMode = false, enableOptionalEffects = false, antialiased = false,
-                 maxScreenSpaceSplatSize = 2048, splatScale = 1.0, pointCloudModeEnabled = false, maxSphericalHarmonicsDegree = 0) {
+                 maxScreenSpaceSplatSize = 2048, splatScale = 1.0, pointCloudModeEnabled = false, maxSphericalHarmonicsDegree = 0, useSplatRooms = false) {
 
         const customVertexVars = `
             uniform vec2 covariancesTextureSize;
@@ -37,12 +37,12 @@ export class SplatMaterial3D {
         `;
 
         let vertexShaderSource = SplatMaterial.buildVertexShaderBase(dynamicMode, enableOptionalEffects,
-                                                                     maxSphericalHarmonicsDegree, customVertexVars);
+                                                                     maxSphericalHarmonicsDegree, customVertexVars, useSplatRooms);
         vertexShaderSource += SplatMaterial3D.buildVertexShaderProjection(antialiased, enableOptionalEffects, maxScreenSpaceSplatSize);
         const fragmentShaderSource = SplatMaterial3D.buildFragmentShader();
 
         const uniforms = SplatMaterial.getUniforms(dynamicMode, enableOptionalEffects,
-                                                   maxSphericalHarmonicsDegree, splatScale, pointCloudModeEnabled);
+                                                   maxSphericalHarmonicsDegree, splatScale, pointCloudModeEnabled, useSplatRooms);
 
         uniforms['covariancesTextureSize'] = {
             'type': 'v2',

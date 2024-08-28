@@ -3,7 +3,7 @@ import { Constants } from '../Constants.js';
 
 export class SplatMaterial {
 
-    static buildVertexShaderBase(dynamicMode = false, enableOptionalEffects = false, maxSphericalHarmonicsDegree = 0, customVars = '') {
+    static buildVertexShaderBase(dynamicMode = false, enableOptionalEffects = false, maxSphericalHarmonicsDegree = 0, customVars = '', useSplatRooms = false) {
         let vertexShaderSource = `
         precision highp float;
         #include <common>
@@ -16,7 +16,7 @@ export class SplatMaterial {
         uniform highp sampler2D sphericalHarmonicsTextureB;
     `;
 
-    if (enableOptionalEffects || dynamicMode) {
+    if (enableOptionalEffects || dynamicMode  || useSplatRooms) {
         vertexShaderSource += `
             uniform highp usampler2D sceneIndexesTexture;
             uniform vec2 sceneIndexesTextureSize;
@@ -33,6 +33,13 @@ export class SplatMaterial {
     if (dynamicMode) {
         vertexShaderSource += `
             uniform highp mat4 transforms[${Constants.MaxScenes}];
+        `;
+    }
+
+    if (useSplatRooms) {
+        vertexShaderSource += `
+            uniform vec3 aabbMins[${Constants.MaxScenes}];
+            uniform vec3 aabbMaxs[${Constants.MaxScenes}];
         `;
     }
 
@@ -105,8 +112,23 @@ export class SplatMaterial {
             samplerUV.y = float(floor(d)) / dimensions.y;
             samplerUV.x = fract(d);
             return samplerUV;
-        }
+        }`;
 
+    if (useSplatRooms) {
+        vertexShaderSource += `
+            vec2 rayIntersectsAABB(vec3 rayOrigin, vec3 rayDir, uint sceneIndex) {
+                vec3 tMin = (aabbMins[sceneIndex] - rayOrigin) / rayDir;
+                vec3 tMax = (aabbMaxs[sceneIndex] - rayOrigin) / rayDir;
+                vec3 t1 = min(tMin, tMax);
+                vec3 t2 = max(tMin, tMax);
+                float tNear = max(max(t1.x, t1.y), t1.z);
+                float tFar = min(min(t2.x, t2.y), t2.z);
+                return vec2(tNear, tFar);
+            }
+        `;
+    }
+        
+    vertexShaderSource += `
         const float SH_C1 = 0.4886025119029199f;
         const float[5] SH_C2 = float[](1.0925484, -1.0925484, 0.3153916, -1.0925484, 0.5462742);
 
@@ -125,9 +147,26 @@ export class SplatMaterial {
             uvec4 sampledCenterColor = texture(centersColorsTexture, getDataUV(1, 0, centersColorsTextureSize));
             vec3 splatCenter = uintBitsToFloat(uvec3(sampledCenterColor.gba));`;
 
-        if (dynamicMode || enableOptionalEffects) {
+        if (dynamicMode || enableOptionalEffects || useSplatRooms) {
             vertexShaderSource += `
                 uint sceneIndex = texture(sceneIndexesTexture, getDataUV(1, 0, sceneIndexesTextureSize)).r;
+            `;
+        }
+
+        if (useSplatRooms) {
+            vertexShaderSource += `
+                vec4 transformedSplatCenter = transforms[sceneIndex] * vec4(splatCenter, 1.0);
+                vec3 rayDir = normalize(transformedSplatCenter.xyz - cameraPosition);
+                vec2 intersections = rayIntersectsAABB(cameraPosition, rayDir, sceneIndex);
+                float tNear = intersections.x;
+                float tFar = intersections.y;
+                
+                // Check if the point is behind or inside the cube
+                float pointDistance = length(transformedSplatCenter.xyz - cameraPosition);
+                if (pointDistance < tNear || tNear > tFar || tFar < 0.0) {
+                    gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
+                    return;
+                };
             `;
         }
 
@@ -341,7 +380,7 @@ export class SplatMaterial {
     }
 
     static getUniforms(dynamicMode = false, enableOptionalEffects = false, maxSphericalHarmonicsDegree = 0,
-                       splatScale = 1.0, pointCloudModeEnabled = false) {
+                       splatScale = 1.0, pointCloudModeEnabled = false, useSplatRooms = false) {
 
         const uniforms = {
             'sceneCenter': {
@@ -485,6 +524,25 @@ export class SplatMaterial {
             uniforms['transforms'] = {
                 'type': 'mat4',
                 'value': transformMatrices
+            };
+        }
+
+        if (useSplatRooms) {
+            const aabbMins = []
+            for (let i = 0; i < Constants.MaxScenes; i++) {
+                aabbMins.push(new THREE.Vector3(-1, -1, -1));
+            }
+            uniforms['aabbMins'] = {
+                'type': 'v3',
+                'value': aabbMins
+            };
+            const aabbMaxs = []
+            for (let i = 0; i < Constants.MaxScenes; i++) {
+                aabbMaxs.push(new THREE.Vector3(1, 1, 1));
+            }
+            uniforms['aabbMaxs'] = {
+                'type': 'v3',
+                'value': aabbMaxs
             };
         }
 

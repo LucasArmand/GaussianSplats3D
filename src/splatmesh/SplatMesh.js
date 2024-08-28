@@ -49,7 +49,7 @@ export class SplatMesh extends THREE.Mesh {
     constructor(splatRenderMode = SplatRenderMode.ThreeD, dynamicMode = true, enableOptionalEffects = false,
                 halfPrecisionCovariancesOnGPU = false, devicePixelRatio = 1, enableDistancesComputationOnGPU = true,
                 integerBasedDistancesComputation = false, antialiased = false, maxScreenSpaceSplatSize = 1024, logLevel = LogLevel.None,
-                sphericalHarmonicsDegree = 0) {
+                sphericalHarmonicsDegree = 0, useSplatRooms = false) {
         super(dummyGeometry, dummyMaterial);
 
         // Reference to a Three.js renderer
@@ -68,6 +68,10 @@ export class SplatMesh extends THREE.Mesh {
         // Default is false for performance reasons. These properties are separate from transform properties (scale, rotation, position)
         // that are enabled by the 'dynamicScene' parameter.
         this.enableOptionalEffects = enableOptionalEffects;
+
+        // When 'useSplatRooms' is true, scenes will use the splat rooms method. This requires the inclusion of an AABB min and max
+        // defined on a per-scene level.
+        this.useSplatRooms = useSplatRooms;
 
         // Use 16-bit floating point values when storing splat covariance data in textures, instead of 32-bit
         this.halfPrecisionCovariancesOnGPU = halfPrecisionCovariancesOnGPU;
@@ -360,7 +364,7 @@ export class SplatMesh extends THREE.Mesh {
             if (this.splatRenderMode === SplatRenderMode.ThreeD) {
                 this.material = SplatMaterial3D.build(this.dynamicMode, this.enableOptionalEffects, this.antialiased,
                                                       this.maxScreenSpaceSplatSize, this.splatScale, this.pointCloudModeEnabled,
-                                                      this.minSphericalHarmonicsDegree);
+                                                      this.minSphericalHarmonicsDegree, this.useSplatRooms);
             } else {
                 this.material = SplatMaterial2D.build(this.dynamicMode, this.enableOptionalEffects,
                                                       this.splatScale, this.pointCloudModeEnabled, this.minSphericalHarmonicsDegree);
