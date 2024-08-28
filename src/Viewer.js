@@ -451,12 +451,14 @@ export class Viewer {
                     this.focalAdjustment -= 0.02;
                     this.forceRenderNextFrame();
                 break;
+                /*
                 case 'ArrowLeft':
                     this.camera.up.transformDirection(tempMatrixLeft);
                 break;
                 case 'ArrowRight':
                     this.camera.up.transformDirection(tempMatrixRight);
                 break;
+                */
                 case 'KeyC':
                     this.showMeshCursor = !this.showMeshCursor;
                 break;

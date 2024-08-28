@@ -305,6 +305,10 @@ export class SceneHelper {
         return debugMeshRoot;
     }
 
+    getThreeScene() {
+        return this.threeScene;
+    }
+
     static buildDebugMaterial(color) {
         const vertexShaderSource = `
             #include <common>

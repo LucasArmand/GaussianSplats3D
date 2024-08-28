@@ -759,7 +759,7 @@ class OrbitControls extends EventDispatcher {
         function handleKeyDown( event ) {
 
             let needsUpdate = false;
-
+            /*
             switch ( event.code ) {
 
                 case scope.keys.UP:
@@ -822,7 +822,7 @@ class OrbitControls extends EventDispatcher {
                     needsUpdate = true;
                     break;
 
-            }
+            */
 
             if ( needsUpdate ) {
 

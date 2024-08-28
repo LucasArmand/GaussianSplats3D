@@ -36,11 +36,11 @@
     const mode = parseInt(urlParams.get('mode')) || 0;
 
     const viewer = new GaussianSplats3D.Viewer({
-        'cameraUp': [0.01933, 0.75830, -0.65161],
-        'initialCameraPosition': [1.54163, 2.68515, -6.37228],
-        'initialCameraLookAt': [0.45622, 1.95338, 1.51278],
+        'cameraUp': [0.0, 1.0, 0.0],
+        'initialCameraPosition': [0.0, 0.0, -5.0],
+        'initialCameraLookAt': [0.0, 0.0, 0.0],
         'sphericalHarmonicsDegree': 2,
-        'rotation': [0, 0.3801884, 0, 0.9249091],
+        'rotation': [0, 0, 0, 0],
         'useSplatRooms': true,
         'dynamicScene': true
     });
@@ -51,35 +51,58 @@
     .then(() => {
         viewer.start();
         document.addEventListener("keydown", onDocumentKeyDown, false);
-        var xAngle = 0.0;
-        var yAngle = 0.0;
-        var zAngle = 0.0;
+        const initialAngle = new THREE.Vector3(-1.5882496193148417, 0.10471975511965977, 0.9599310885968821);
+        const initialOffset = new THREE.Vector3(-0.1, -0.52, -0.26);
+        var xAngle = initialAngle.x;
+        var yAngle = initialAngle.y;
+        var zAngle = initialAngle.z;
+        var xOffset = initialOffset.x;
+        var yOffset = initialOffset.y;
+        var zOffset = initialOffset.z;
+        
+        const ANGLE_INCREMENT = Math.PI / 180.0;
+        const OFFSET_INCREMENT = 0.01;
         function onDocumentKeyDown(event) {
             var keyCode = event.which;
-            if (keyCode == 39) {
-                yAngle += Math.PI / 60.0;
-            } else if (keyCode == 37) {
-                yAngle -= Math.PI / 60.0;
-            } else if (keyCode == 33) {
-                xAngle += Math.PI / 60.0;
-            } else if (keyCode == 36) {
-                xAngle -= Math.PI / 60.0;
-            } else if (keyCode == 34) {
-                zAngle += Math.PI / 60.0;
-            } else if (keyCode == 35) {
-              zAngle -= Math.PI / 60.0;
+            if (keyCode == 39) {        // Numpad 6
+                yAngle += ANGLE_INCREMENT;
+            } else if (keyCode == 37) { // Numpad 4
+                yAngle -= ANGLE_INCREMENT;
+            } else if (keyCode == 33) { // Numpad 9
+                xAngle += ANGLE_INCREMENT;
+            } else if (keyCode == 36) { // Numpad 7
+                xAngle -= ANGLE_INCREMENT;
+            } else if (keyCode == 34) { // Numpad 3
+                zAngle += ANGLE_INCREMENT;
+            } else if (keyCode == 35) { // Numpad 1
+                zAngle -= ANGLE_INCREMENT;
+            } else if (keyCode == 87) { // W
+                yOffset += OFFSET_INCREMENT;
+            } else if (keyCode == 83) { // S
+                yOffset -= OFFSET_INCREMENT;
+            } else if (keyCode == 68) { // D
+                xOffset += OFFSET_INCREMENT;
+            } else if (keyCode == 65) { // A
+                xOffset -= OFFSET_INCREMENT;
+            } else if (keyCode == 69) { // E
+                zOffset += OFFSET_INCREMENT;
+            } else if (keyCode == 81) { // Q
+                zOffset -= OFFSET_INCREMENT;
             }
+            console.log("Angle: ", [xAngle, yAngle, zAngle]);
+            console.log("Offset: ", [xOffset, yOffset, zOffset]);
         };
         let startTime = performance.now() / 1000.0;
         const quaternion = new THREE.Quaternion();
+        const position = new THREE.Vector3();
         
         // Create cube mesh with inverted normals
-        const cubeSize = 4;
+        const cubeSize = 2;
         const geometry = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
-        geometry.scale(2, 1, -1);
+        geometry.scale(1, 1, -1);
         const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
         const cube = new THREE.Mesh(geometry, material);
-
+        viewer.sceneHelper.getThreeScene().add(cube);
         requestAnimationFrame(update);
         function update() {
           requestAnimationFrame(update);
@@ -87,8 +110,10 @@
           let euler = new THREE.Euler( xAngle, yAngle, zAngle, 'XYZ' );
           quaternion.setFromEuler(euler);
 
+          position.copy(new THREE.Vector3(xOffset, yOffset, zOffset));
+
           const splatScene = viewer.getSplatScene(0);
-          //splatScene.position.copy(position);
+          splatScene.position.copy(position);
           splatScene.quaternion.copy(quaternion);
           //splatScene.scale.copy(scale);
         }
