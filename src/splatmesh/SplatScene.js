@@ -6,7 +6,8 @@ import * as THREE from 'three';
 export class SplatScene {
 
     constructor(splatBuffer, position = new THREE.Vector3(), quaternion = new THREE.Quaternion(),
-                scale = new THREE.Vector3(1, 1, 1), minimumAlpha = 1, opacity = 1.0, visible = true) {
+                scale = new THREE.Vector3(1, 1, 1), minimumAlpha = 1, opacity = 1.0, visible = true,
+                aabbMin = new THREE.Vector3(), aabbMax = new THREE.Vector3(), isSplatRoom = false) {
         this.splatBuffer = splatBuffer;
         this.position = position.clone();
         this.quaternion = quaternion.clone();
@@ -15,6 +16,9 @@ export class SplatScene {
         this.minimumAlpha = minimumAlpha;
         this.opacity = opacity;
         this.visible = visible;
+        this.aabbMin = aabbMin.clone();
+        this.aabbMax = aabbMax.clone();
+        this.isSplatRoom = isSplatRoom;
         this.updateTransform();
     }
 

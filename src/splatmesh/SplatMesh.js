@@ -1265,6 +1265,12 @@ export class SplatMesh extends THREE.Mesh {
                         this.material.uniformsNeedUpdate = true;
                     }
                 }
+                if (this.useSplatRooms) {
+                    for (let i = 0; i < this.scenes.length; i++) {
+                        this.material.uniforms.aabbMins.value[i].copy(this.getScene(i).aabbMin);
+                        this.material.uniforms.aabbMaxs.value[i].copy(this.getScene(i).aabbMax);
+                    }
+                }
                 this.material.uniformsNeedUpdate = true;
             }
         };
