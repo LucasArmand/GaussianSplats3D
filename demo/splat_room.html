@@ -64,6 +64,16 @@
         var yBoxScale = initialBoxScale.y;
         var zBoxScale = initialBoxScale.z;
 
+        const stencilMaterial = new THREE.MeshBasicMaterial({
+            depthWrite: false,
+            depthTest: false,
+            colorWrite: false,
+            stencilWrite: true,
+            stencilFunc: THREE.AlwaysStencilFunc,
+            stencilRef: 1,
+            stencilZPass: THREE.ReplaceStencilOp
+        });
+
         let aabb = new THREE.Box3(new THREE.Vector3(-xBoxScale/2, -yBoxScale/2, -zBoxScale/2), new THREE.Vector3(xBoxScale/2, yBoxScale/2, zBoxScale/2));
 
         const ANGLE_INCREMENT = Math.PI / 180.0;
@@ -126,26 +136,28 @@
         const cubeSize = 2;
         let geometry = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
         geometry.scale(1, 1, -1);
-        const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
-        const cube = new THREE.Mesh(geometry, material);
-        viewer.sceneHelper.getThreeScene().add(cube);
+        const stencilBox= new THREE.Mesh(geometry, stencilMaterial);
+        viewer.sceneHelper.getThreeScene().add(stencilBox);
+        
         requestAnimationFrame(update);
         function update() {
-          requestAnimationFrame(update);
-          const splatScene = viewer.getSplatScene(0);
+            requestAnimationFrame(update);
+            const splatScene = viewer.getSplatScene(0);
 
-          let euler = new THREE.Euler( xAngle, yAngle, zAngle, 'XYZ' );
-          quaternion.setFromEuler(euler);
+            let euler = new THREE.Euler( xAngle, yAngle, zAngle, 'XYZ' );
+            quaternion.setFromEuler(euler);
 
-          position.copy(new THREE.Vector3(xOffset, yOffset, zOffset));
+            
+            position.copy(new THREE.Vector3(xOffset, yOffset, zOffset));
 
-          aabb = new THREE.Box3(new THREE.Vector3(-xBoxScale/2, -yBoxScale/2, -zBoxScale/2), new THREE.Vector3(xBoxScale/2, yBoxScale/2, zBoxScale/2));
-          splatScene.aabbMin.copy(aabb.min);
-          splatScene.aabbMax.copy(aabb.max);
-          cube.scale.copy(new THREE.Vector3(xBoxScale/2,  yBoxScale/2, zBoxScale/2));
-          splatScene.position.copy(position);
-          splatScene.quaternion.copy(quaternion);
-          //splatScene.scale.copy(scale);
+            // Copy bounding box details to scene for updateUniforms()
+            aabb = new THREE.Box3(new THREE.Vector3(-xBoxScale/2, -yBoxScale/2, -zBoxScale/2), new THREE.Vector3(xBoxScale/2, yBoxScale/2, zBoxScale/2));
+            splatScene.aabbMin.copy(aabb.min);
+            splatScene.aabbMax.copy(aabb.max);
+
+            stencilBox.scale.copy(new THREE.Vector3(xBoxScale/2,  yBoxScale/2, zBoxScale/2));
+            splatScene.position.copy(position);
+            splatScene.quaternion.copy(quaternion);
         }
     });
   </script>
