@@ -172,6 +172,8 @@ export class Viewer {
         }
         this.freeIntermediateSplatData = options.freeIntermediateSplatData;
 
+        this.aabbs = options.aabbs;
+
         // It appears that for certain iOS versions, special actions need to be taken with the
         // usage of SIMD instructions and shared memory
         if (isIOS()) {
@@ -345,6 +347,32 @@ export class Viewer {
             });
             this.resizeObserver.observe(this.rootElement);
             this.rootElement.appendChild(this.renderer.domElement);
+
+            this.maskRenderTarget = new THREE.WebGLRenderTarget(
+                renderDimensions.x,
+                renderDimensions.y,
+                {
+                  minFilter: THREE.LinearFilter,
+                  magFilter: THREE.LinearFilter,
+                  format: THREE.RGBAFormat,
+                  stencilBuffer: false
+                }
+              );
+              this.maskScene = new THREE.Scene();
+          
+              // Create a box for each AABB
+              this.aabbs.forEach(aabb => {
+                const size = new THREE.Vector3();
+                aabb.getSize(size);
+                const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+                const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+                const mesh = new THREE.Mesh(geometry, this.material);
+                geometry.scale(1, 1, -1);
+                // Position the box at the center of the AABB
+                mesh.position.copy(aabb.getCenter(new THREE.Vector3()));
+          
+                this.maskScene.add(mesh);
+              });
         }
 
     }
@@ -1557,10 +1585,10 @@ export class Viewer {
             };
 
             const savedAuoClear = this.renderer.autoClear;
-            if (hasRenderables(this.threeScene)) {
-                this.renderer.render(this.threeScene, this.camera);
+            //if (hasRenderables(this.threeScene)) {
+                this.renderer.render(this.maskScene, this.camera);
                 this.renderer.autoClear = false;
-            }
+            //}
             this.renderer.render(this.splatMesh, this.camera);
             this.renderer.autoClear = false;
             if (this.sceneHelper.getFocusMarkerOpacity() > 0.0) this.renderer.render(this.sceneHelper.focusMarker, this.camera);

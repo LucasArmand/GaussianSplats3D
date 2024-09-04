@@ -68,10 +68,7 @@ export class SplatMaterial3D {
             transparent: true,
             alphaTest: 1.0,
             blending: THREE.NormalBlending,
-            stencilWrite: true,
-            stencilRef: 1,
             depthTest: false,
-            stencilFunc: THREE.EqualStencilFunc,
             side: THREE.DoubleSide
         });
 
