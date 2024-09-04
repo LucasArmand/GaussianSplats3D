@@ -155,14 +155,13 @@ export class SplatMaterial {
 
         if (useSplatRooms) {
             vertexShaderSource += `
-                vec4 transformedSplatCenter = transforms[sceneIndex] * vec4(splatCenter, 1.0);
-                vec3 rayDir = normalize(transformedSplatCenter.xyz - cameraPosition);
+                vec3 rayDir = normalize(splatCenter- cameraPosition);
                 vec2 intersections = rayIntersectsAABB(cameraPosition, rayDir, sceneIndex);
                 float tNear = intersections.x;
                 float tFar = intersections.y;
                 
                 // Check if the point is behind or inside the cube
-                float pointDistance = length(transformedSplatCenter.xyz - cameraPosition);
+                float pointDistance = length(splatCenter - cameraPosition);
                 if (pointDistance < tNear || tNear > tFar || tFar < 0.0) {
                     gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
                     return;
