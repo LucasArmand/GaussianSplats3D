@@ -867,7 +867,7 @@ export class SplatMesh extends THREE.Mesh {
             this.material.uniformsNeedUpdate = true;
         }
 
-        if (this.dynamicMode || this.enableOptionalEffects) {
+        if (this.dynamicMode || this.enableOptionalEffects || this.useSplatRooms) {
             const sceneIndexesTexSize = computeDataTextureSize(SCENE_INDEXES_ELEMENTS_PER_TEXEL, 4);
             const paddedTransformIndexes = new Uint32Array(sceneIndexesTexSize.x *
                                                            sceneIndexesTexSize.y * SCENE_INDEXES_ELEMENTS_PER_TEXEL);

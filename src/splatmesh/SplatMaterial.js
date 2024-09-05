@@ -484,7 +484,7 @@ export class SplatMaterial {
             }
         };
 
-        if (dynamicMode || enableOptionalEffects) {
+        if (dynamicMode || enableOptionalEffects || useSplatRooms) {
             uniforms['sceneIndexesTexture'] = {
                 'type': 't',
                 'value': null
