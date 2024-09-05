@@ -355,30 +355,32 @@ export class Viewer {
                 renderDimensions.y,
                 {
                   stencilBuffer: false,
-                  depthBuffer: false,
+                  depthBuffer: true,
+                  depthTest: true
                   //type: THREE.UnsignedByteType,
                   //format: THREE.RGBAIntegerFormat,
                   //internalFormat: 'RGBA8UI',
                 }
               );
 
-            this.maskScene = new THREE.Scene();
-
-            // Create a box for each AABB
-            this.aabbs.forEach(aabb => {
-                const size = new THREE.Vector3();
-                aabb.getSize(size);
-                const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-                const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
-                const mesh = new THREE.Mesh(geometry, material);
-                geometry.scale(1, 1, -1);
-                mesh.position.copy(aabb.getCenter(new THREE.Vector3()));
-                this.maskScene.add(mesh);
-            });
+            this.updateMaskScene();
         }
-
     }
+    updateMaskScene() {
+        this.maskScene = new THREE.Scene();
 
+        const boxColors = [new THREE.Color(0xFF0000), new THREE.Color(0x00FF00), new THREE.Color(0x0000FF)];
+        for (let i = 0; i < this.aabbs.length; i++) {
+            const size = new THREE.Vector3();
+            this.aabbs[i].getSize(size);
+            const material = new THREE.MeshBasicMaterial({ color: boxColors[i]});
+            const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+            const mesh = new THREE.Mesh(geometry, material);
+            geometry.scale(1, 1, -1);
+            mesh.position.copy(this.aabbs[i].getCenter(new THREE.Vector3()));
+            this.maskScene.add(mesh);
+        };
+    }
     setupWebXR() {
         if (this.webXRMode) {
             if (this.webXRMode === WebXRMode.VR) {

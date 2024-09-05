@@ -68,6 +68,7 @@ export class SplatMaterial {
         varying vec4 vColor;
         varying vec2 vUv;
         varying vec2 vPosition;
+        flat varying uint vSceneIndex;
 
         mat3 quaternionToRotationMatrix(float x, float y, float z, float w) {
             float s = 1.0 / sqrt(w * w + x * x + y * y + z * z);
@@ -152,16 +153,27 @@ export class SplatMaterial {
                 uint sceneIndex = texture(sceneIndexesTexture, getDataUV(1, 0, sceneIndexesTextureSize)).r;
             `;
         }
-
         if (useSplatRooms) {
             vertexShaderSource += `
-                vec3 rayDir = normalize(splatCenter- cameraPosition);
+            vec4 transformedSplatCenter = vec4(splatCenter, 1.0);
+            `;
+        }
+        if (dynamicMode) {
+            vertexShaderSource += `
+            transformedSplatCenter = transforms[sceneIndex] * transformedSplatCenter;
+            `;
+        }
+        if (useSplatRooms) {
+            vertexShaderSource += `
+                vec3 rayDir = normalize(transformedSplatCenter.xyz - cameraPosition);
                 vec2 intersections = rayIntersectsAABB(cameraPosition, rayDir, sceneIndex);
                 float tNear = intersections.x;
                 float tFar = intersections.y;
-                
+
+                vSceneIndex = sceneIndex;
+
                 // Check if the point is behind or inside the cube
-                float pointDistance = length(splatCenter - cameraPosition);
+                float pointDistance = length(transformedSplatCenter.xyz - cameraPosition);
                 if (pointDistance < tNear || tNear > tFar || tFar < 0.0) {
                     gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
                     return;

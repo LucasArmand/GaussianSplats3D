@@ -31,153 +31,170 @@
   <script type="module">
     import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
     import * as THREE from 'three';
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const mode = parseInt(urlParams.get('mode')) || 0;
-    const initialEulerAngle = new THREE.Euler(-1.5882496193148417, 0.12217304763960306, 0.9948376736367688);
-    const initialAngle = new THREE.Quaternion().setFromEuler(initialEulerAngle);
-    const initialOffset = [new THREE.Vector3(-0.18, -0.46, -0.04), new THREE.Vector3(-0.18 + 2.5, -0.46, -0.04)];
-    const numScenes = 9;
-    const initialBoxScale = new THREE.Vector3(2.02, 1.67, 2.7);
+    
+    let layoutData = {}
     let aabbs = []
     let initialOffsets = [];
+    let initialAngles = []; 
+    let initialScales = [];
+    let initialBoxScales = [];
     let splatOptions = [];
-    let path = 'assets/data/lucas.ply';
-    for (let i = 0; i < numScenes; i++) {
-        aabbs.push(new THREE.Box3(new THREE.Vector3(-initialBoxScale.x/2 + Math.floor(i / 3) * 2.5, -initialBoxScale.y/2, -initialBoxScale.z/2 + (i % 3) * 3.0),
-        new THREE.Vector3(initialBoxScale.x/2 + Math.floor(i / 3) * 2.5, initialBoxScale.y/2, initialBoxScale.z/2 + (i % 3) * 3.0)));
+    const numScenes = 1;
 
-        initialOffsets.push(new THREE.Vector3(-0.18 + Math.floor(i / 3) * 2.5, -0.46, -0.04 + (i % 3) * 3.0));
+    fetch('./assets/data/layout.json')
+    .then(response => response.json())
+    .then(jsonData => {
+        layoutData = jsonData;
+        console.log(layoutData);
+        Object.keys(layoutData).forEach(key => {
+            let layout = layoutData[key];
+            console.log(layout);
+            const initialEulerAngle = new THREE.Euler(layout["rotation"][0], layout["rotation"][1], layout["rotation"][2])
+            const initialAngle = new THREE.Quaternion();
+            initialAngle.setFromEuler(initialEulerAngle);
+            const initialOffset = new THREE.Vector3(layout["offset"][0], layout["offset"][1], layout["offset"][2])
+            const initialBoxScale = new THREE.Vector3(layout["boxScale"][0], layout["boxScale"][1], layout["boxScale"][2])
+            const initialScale = layout["scale"];
+            const path = layout["path"];
 
-        splatOptions.push(
+            splatOptions.push(
             {
-            'path': path,
-            'progressiveLoad': false,
-            'position': initialOffsets[i].toArray(),
-            'rotation': initialAngle.toArray()
-            },
-        )
-    }
-    
-    //const aabb = new THREE.Box3(new THREE.Vector3(-initialBoxScale.x/2, -initialBoxScale.y/2, -initialBoxScale.z/2),
-     //                           new THREE.Vector3(initialBoxScale.x/2, initialBoxScale.y/2, initialBoxScale.z/2));
-    const viewer = new GaussianSplats3D.Viewer({
-        'cameraUp': [0.0, 1.0, 0.0],
-        'initialCameraPosition': [0.0, 0.0, -5.0],
-        'initialCameraLookAt': [0.0, 0.0, 0.0],
-        'sphericalHarmonicsDegree': 2,
-        'rotation': [0, 0, 0, 0],
-        'useSplatRooms': true,
-        'dynamicScene': false,
-        'aabbs': aabbs
-    });
+                'path': path,
+                'progressiveLoad': false,
+                'position': initialOffset.toArray(),
+                'rotation': initialAngle.toArray()
+            });
+            initialAngles.push(initialEulerAngle.clone());
+            initialOffsets.push(initialOffset.clone());
+            initialBoxScales.push(initialBoxScale.clone());
+            initialScales.push(initialScale);
+            aabbs.push(new THREE.Box3(new THREE.Vector3(-initialBoxScale.x/2, -initialBoxScale.y/2, -initialBoxScale.z/2),
+            new THREE.Vector3(initialBoxScale.x/2, initialBoxScale.y/2, initialBoxScale.z/2)));
 
+        });
+        
+    }).then(() => {
+        const EDIT_MODE = true;
 
+        const viewer = new GaussianSplats3D.Viewer({
+            'cameraUp': [0.0, 1.0, 0.0],
+            'initialCameraPosition': [0.0, 0.0, -5.0],
+            'initialCameraLookAt': [0.0, 0.0, 0.0],
+            'sphericalHarmonicsDegree': 2,
+            'rotation': [0, 0, 0, 0],
+            'useSplatRooms': true,
+            'dynamicScene': EDIT_MODE,
+            'aabbs': aabbs
+        });
 
-    viewer.addSplatScenes(splatOptions)
-    .then(() => {
-        viewer.start();
-        document.addEventListener("keydown", onDocumentKeyDown, false);
+        var selectedSceneIndex = 0;
 
-        var xAngle = initialAngle.x;
-        var yAngle = initialAngle.y;
-        var zAngle = initialAngle.z;
-        var xOffset = initialOffset.x;
-        var yOffset = initialOffset.y;
-        var zOffset = initialOffset.z;
-        var xBoxScale = initialBoxScale.x;
-        var yBoxScale = initialBoxScale.y;
-        var zBoxScale = initialBoxScale.z;
+        viewer.addSplatScenes(splatOptions)
+        .then(() => {
+            viewer.start();
+            document.addEventListener("keydown", onDocumentKeyDown, false);
+            var angles = [];
+            var offsets = [];
+            var boxScales = [];
+            var scales = [];
+            for (let i = 0; i < numScenes; i++) {
+                angles[i] = new THREE.Vector3(initialAngles[i].x, initialAngles[i].y, initialAngles[i].z);
+                offsets[i] = initialOffsets[i].clone();
+                boxScales[i] = initialBoxScales[i].clone();
+                scales[i] = initialScales[i];
+            }   
+            const ANGLE_INCREMENT = Math.PI / 180.0;
+            const OFFSET_INCREMENT = 0.01;
+            const SCALE_INCREMENT = 0.01;
+            function onDocumentKeyDown(event) {
+                var keyCode = event.which;
+                let i = 0;
+                if (EDIT_MODE) {
+                    if (keyCode == 39) {        // Numpad 6
+                        angles[i].y += ANGLE_INCREMENT;
+                    } else if (keyCode == 37) { // Numpad 4
+                        angles[i].y -= ANGLE_INCREMENT;
+                    } else if (keyCode == 33) { // Numpad 9
+                        angles[i].x += ANGLE_INCREMENT;
+                    } else if (keyCode == 36) { // Numpad 7
+                        angles[i].x -= ANGLE_INCREMENT;
+                    } else if (keyCode == 34) { // Numpad 3
+                        angles[i].z += ANGLE_INCREMENT;
+                    } else if (keyCode == 35) { // Numpad 1
+                        angles[i].z -= ANGLE_INCREMENT;
+                    } else if (keyCode == 87) { // W
+                        offsets[i].y += OFFSET_INCREMENT;
+                    } else if (keyCode == 83) { // S
+                        offsets[i].y -= OFFSET_INCREMENT;
+                    } else if (keyCode == 68) { // D
+                        offsets[i].x += OFFSET_INCREMENT;
+                    } else if (keyCode == 65) { // A
+                        offsets[i].x -= OFFSET_INCREMENT;
+                    } else if (keyCode == 69) { // E
+                        offsets[i].z += OFFSET_INCREMENT;
+                    } else if (keyCode == 81) { // Q
+                        offsets[i].z -= OFFSET_INCREMENT;
+                    } else if (keyCode == 221) { // ]
+                        boxScales[i].y += SCALE_INCREMENT;
+                    } else if (keyCode == 219) { // [
+                        boxScales[i].y -= SCALE_INCREMENT;
+                    } else if (keyCode == 222) { // '
+                        boxScales[i].x += SCALE_INCREMENT;
+                    } else if (keyCode == 186) { // ;
+                        boxScales[i].x -= SCALE_INCREMENT;
+                    } else if (keyCode == 190) { // .
+                        boxScales[i].z += SCALE_INCREMENT;
+                    } else if (keyCode == 188) { // ,
+                        boxScales[i].z -= SCALE_INCREMENT;
+                    } else if (keyCode == 32) { // Space
+                        selectedSceneIndex = (selectedSceneIndex + 1) % numScenes;
+                    }
+                
+                    aabbs[i] = new THREE.Box3(new THREE.Vector3(-boxScales[i].x/2, -boxScales[i].y/2, -boxScales[i].z/2),
+                                                new THREE.Vector3(boxScales[i].x/2, boxScales[i].y/2, boxScales[i].z/2));
+                    console.log("Angle: ", [angles[i].x, angles[i].y, angles[i].z]);
+                    console.log("Offset: ", [offsets[i].x, offsets[i].y, offsets[i].z]);
+                    console.log("Scale: ", [boxScales[i].x, boxScales[i].y, boxScales[i].z]);
+                }
 
-        const ANGLE_INCREMENT = Math.PI / 180.0;
-        const OFFSET_INCREMENT = 0.01;
-        const SCALE_INCREMENT = 0.01;
-        function onDocumentKeyDown(event) {
-            var keyCode = event.which;
-            if (keyCode == 39) {        // Numpad 6
-                yAngle += ANGLE_INCREMENT;
-            } else if (keyCode == 37) { // Numpad 4
-                yAngle -= ANGLE_INCREMENT;
-            } else if (keyCode == 33) { // Numpad 9
-                xAngle += ANGLE_INCREMENT;
-            } else if (keyCode == 36) { // Numpad 7
-                xAngle -= ANGLE_INCREMENT;
-            } else if (keyCode == 34) { // Numpad 3
-                zAngle += ANGLE_INCREMENT;
-            } else if (keyCode == 35) { // Numpad 1
-                zAngle -= ANGLE_INCREMENT;
-            } else if (keyCode == 87) { // W
-                yOffset += OFFSET_INCREMENT;
-            } else if (keyCode == 83) { // S
-                yOffset -= OFFSET_INCREMENT;
-            } else if (keyCode == 68) { // D
-                xOffset += OFFSET_INCREMENT;
-            } else if (keyCode == 65) { // A
-                xOffset -= OFFSET_INCREMENT;
-            } else if (keyCode == 69) { // E
-                zOffset += OFFSET_INCREMENT;
-            } else if (keyCode == 81) { // Q
-                zOffset -= OFFSET_INCREMENT;
-            } else if (keyCode == 221) { // ]
-                yBoxScale += SCALE_INCREMENT;
-            } else if (keyCode == 219) { // [
-                yBoxScale -= SCALE_INCREMENT;
-            } else if (keyCode == 222) { // '
-                xBoxScale += SCALE_INCREMENT;
-            } else if (keyCode == 186) { // ;
-                xBoxScale -= SCALE_INCREMENT;
-            } else if (keyCode == 190) { // .
-                zBoxScale += SCALE_INCREMENT;
-            } else if (keyCode == 188) { // ,
-                zBoxScale -= SCALE_INCREMENT;
+            };
+            for (let i = 0; i < numScenes; i++) {
+                viewer.getSplatScene(i).isSplatRoom = true;
+                viewer.getSplatScene(i).aabbMin.copy(aabbs[i].min);
+                viewer.getSplatScene(i).aabbMax.copy(aabbs[i].max);
             }
-            console.log("Angle: ", [xAngle, yAngle, zAngle]);
-            console.log("Offset: ", [xOffset, yOffset, zOffset]);
-            console.log("Scale: ", [xBoxScale, yBoxScale, zBoxScale]);
-
-        };
-        for (let i = 0; i < numScenes; i++) {
-            viewer.getSplatScene(i).isSplatRoom = true;
-            viewer.getSplatScene(i).aabbMin.copy(aabbs[i].min);
-            viewer.getSplatScene(i).aabbMax.copy(aabbs[i].max);
-        }
 
 
-        let startTime = performance.now() / 1000.0;
-        const quaternion = new THREE.Quaternion();
-        const position = new THREE.Vector3();
-        
-        // Create cube mesh with inverted normals
-        //const cubeSize = 2;
-        //let geometry = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
-        //geometry.scale(1, 1, -1);
-        //const stencilBox= new THREE.Mesh(geometry, stencilMaterial);
-        //viewer.sceneHelper.getThreeScene().add(stencilBox);
+            let startTime = performance.now() / 1000.0;
+            const quaternion = new THREE.Quaternion();
+            const position = new THREE.Vector3();
         
 
-
-        requestAnimationFrame(update);
-        function update() {
             requestAnimationFrame(update);
-            //const splatScene = viewer.getSplatScene(0);
+            function update() {
+                requestAnimationFrame(update);
 
-            /*let euler = new THREE.Euler( xAngle, yAngle, zAngle, 'XYZ' );
-            quaternion.setFromEuler(euler);
+                for (let i = 0; i < numScenes; i++) {
+                    let splatScene = viewer.getSplatScene(i);
+                    let euler = new THREE.Euler( angles[i].x, angles[i].y, angles[i].z, 'XYZ' );
+                    quaternion.setFromEuler(euler);
+                    
+                    position.copy(new THREE.Vector3(offsets[i].x, offsets[i].y, offsets[i].z));
 
-            
-            position.copy(new THREE.Vector3(xOffset, yOffset, zOffset));
-
-            // Copy bounding box details to scene for updateUniforms()
-            aabb = new THREE.Box3(new THREE.Vector3(-xBoxScale/2, -yBoxScale/2, -zBoxScale/2), new THREE.Vector3(xBoxScale/2, yBoxScale/2, zBoxScale/2));
-            splatScene.aabbMin.copy(aabb.min);
-            splatScene.aabbMax.copy(aabb.max);
-
-            stencilBox.scale.copy(new THREE.Vector3(xBoxScale/2,  yBoxScale/2, zBoxScale/2));
-            splatScene.position.copy(position);
-            splatScene.quaternion.copy(quaternion);
-            */
-        }
-    });
+                    // Copy bounding box details to scene for updateUniforms()
+                    let aabb = aabbs[i];
+                    splatScene.aabbMin.copy(aabb.min);
+                    splatScene.aabbMax.copy(aabb.max);
+                    viewer.aabbs[i] = aabb.clone();
+                    viewer.updateMaskScene();
+                    splatScene.position.copy(position);
+                    splatScene.quaternion.copy(quaternion);
+                }
+                
+            }
+        });
+    })
+    .catch(error => console.error('Error:', error));
   </script>
 </body>
 
