@@ -543,6 +543,14 @@ export class SplatMaterial {
                 'type': 'v3',
                 'value': aabbMaxs
             };
+            uniforms['maskTexture'] = {
+                'type': 't',
+                'value': null
+            }
+            uniforms['resolution'] = {
+                'type': 'v2',
+                'value': null
+            }
         }
 
         return uniforms;

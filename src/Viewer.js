@@ -332,8 +332,7 @@ export class Viewer {
 
             this.renderer = new THREE.WebGLRenderer({
                 antialias: false,
-                precision: 'highp',
-                stencil: true,
+                precision: 'highp'
             });
             this.renderer.setPixelRatio(this.devicePixelRatio);
             this.renderer.autoClear = true;
@@ -344,6 +343,9 @@ export class Viewer {
                 this.getRenderDimensions(renderDimensions);
                 this.renderer.setSize(renderDimensions.x, renderDimensions.y);
                 this.forceRenderNextFrame();
+                if (this.useSplatRooms && this.splatMesh.material.uniforms) {
+                    this.splatMesh.material.uniforms.resolution.value = renderDimensions.clone();
+                }
             });
             this.resizeObserver.observe(this.rootElement);
             this.rootElement.appendChild(this.renderer.domElement);
@@ -352,27 +354,27 @@ export class Viewer {
                 renderDimensions.x,
                 renderDimensions.y,
                 {
-                  minFilter: THREE.LinearFilter,
-                  magFilter: THREE.LinearFilter,
-                  format: THREE.RGBAFormat,
-                  stencilBuffer: false
+                  stencilBuffer: false,
+                  depthBuffer: false,
+                  //type: THREE.UnsignedByteType,
+                  //format: THREE.RGBAIntegerFormat,
+                  //internalFormat: 'RGBA8UI',
                 }
               );
-              this.maskScene = new THREE.Scene();
-          
-              // Create a box for each AABB
-              this.aabbs.forEach(aabb => {
+
+            this.maskScene = new THREE.Scene();
+
+            // Create a box for each AABB
+            this.aabbs.forEach(aabb => {
                 const size = new THREE.Vector3();
                 aabb.getSize(size);
-                const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+                const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
                 const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
-                const mesh = new THREE.Mesh(geometry, this.material);
+                const mesh = new THREE.Mesh(geometry, material);
                 geometry.scale(1, 1, -1);
-                // Position the box at the center of the AABB
                 mesh.position.copy(aabb.getCenter(new THREE.Vector3()));
-          
                 this.maskScene.add(mesh);
-              });
+            });
         }
 
     }
@@ -1220,6 +1222,11 @@ export class Viewer {
             };
             const buildResults = this.splatMesh.build(allSplatBuffers, allSplatBufferOptions, true, finalBuild, onSplatTreeIndexesUpload,
                                                       onSplatTreeReady, preserveVisibleRegion);
+            if (this.useSplatRooms) {
+                let renderDimensions = new THREE.Vector2();
+                this.getRenderDimensions(renderDimensions);
+                this.splatMesh.material.uniforms.resolution.value = renderDimensions.clone();
+            }                                       
             if (finalBuild && this.freeIntermediateSplatData) this.splatMesh.freeIntermediateSplatData();
             return buildResults;
         };
@@ -1573,7 +1580,6 @@ export class Viewer {
     }();
 
     render = function() {
-
         return function() {
             if (!this.initialized || !this.splatRenderReady) return;
 
@@ -1584,16 +1590,26 @@ export class Viewer {
                 return false;
             };
 
-            const savedAuoClear = this.renderer.autoClear;
-            //if (hasRenderables(this.threeScene)) {
-                this.renderer.render(this.maskScene, this.camera);
-                this.renderer.autoClear = false;
-            //}
+            this.renderer.setRenderTarget( this.maskRenderTarget );
+
+            this.renderer.render( this.maskScene, this.camera );
+
+            this.splatMesh.material.uniforms.maskTexture.value = this.maskRenderTarget.texture;
+            this.splatMesh.material.uniformsNeedUpdate = true;
+
+            this.renderer.setRenderTarget( null );
+  
+            if (hasRenderables(this.threeScene)) {
+                this.renderer.render(this.threeScene, this.camera);
+            }
+
             this.renderer.render(this.splatMesh, this.camera);
-            this.renderer.autoClear = false;
+
             if (this.sceneHelper.getFocusMarkerOpacity() > 0.0) this.renderer.render(this.sceneHelper.focusMarker, this.camera);
             if (this.showControlPlane) this.renderer.render(this.sceneHelper.controlPlane, this.camera);
-            this.renderer.autoClear = savedAuoClear;
+
+            this.renderer.autoClear = true;
+
         };
 
     }();

@@ -69,7 +69,8 @@ export class SplatMaterial3D {
             alphaTest: 1.0,
             blending: THREE.NormalBlending,
             depthTest: false,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            //glslVersion: THREE.GLSL3
         });
 
         return material;
@@ -223,6 +224,8 @@ export class SplatMaterial3D {
             #include <common>
  
             uniform vec3 debugColor;
+            uniform highp sampler2D maskTexture;
+            uniform vec2 resolution;
 
             varying vec4 vColor;
             varying vec2 vUv;
@@ -244,8 +247,11 @@ export class SplatMaterial3D {
                 // the gaussian formula becomes the identity matrix. We're then left with (X - mean) * (X - mean),
                 // and since 'mean' is zero, we have X * X, which is the same as A:
                 float opacity = exp(-0.5 * A) * vColor.a;
+                
+                if (texture(maskTexture, gl_FragCoord.xy / resolution.xy).r < 0.5) discard;
 
-                gl_FragColor = vec4(color.rgb, opacity);
+                gl_FragColor = vec4(color, opacity);
+
             }
         `;
 
