@@ -83,6 +83,9 @@ export class Viewer {
         // Allows for usage of an external Three.js camera
         this.camera = options.camera;
 
+        // Maintains an array of THREE objects to serve as guides for SplatRoom editing
+        this.editBoxes = [];
+
         // If 'gpuAcceleratedSort' is true, a partially GPU-accelerated approach to sorting splats will be used.
         // Currently this means pre-computing splat distances from the camera on the GPU
         this.gpuAcceleratedSort = options.gpuAcceleratedSort || false;
@@ -173,6 +176,8 @@ export class Viewer {
         this.freeIntermediateSplatData = options.freeIntermediateSplatData;
 
         this.aabbs = options.aabbs;
+
+        this.enableMaskView = options.enableMaskView || false;
 
         // It appears that for certain iOS versions, special actions need to be taken with the
         // usage of SIMD instructions and shared memory
@@ -364,8 +369,21 @@ export class Viewer {
               );
 
             this.updateMaskScene();
+            
         }
     }
+
+    /*
+    updateEditBoxes() {
+        if (this.threeScene) {
+            for (let box of this.editBoxes) {
+                if (!this.threeScene.getObjectByName(box.name)) {
+                    
+                }
+            }
+        }
+    }
+    */
     updateMaskScene() {
         this.maskScene = new THREE.Scene();
 
@@ -373,7 +391,7 @@ export class Viewer {
         for (let i = 0; i < this.aabbs.length; i++) {
             const size = new THREE.Vector3();
             this.aabbs[i].getSize(size);
-            const material = new THREE.MeshBasicMaterial({ color: boxColors[i]});
+            const material = new THREE.MeshBasicMaterial({ color: boxColors[0]});
             const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
             const mesh = new THREE.Mesh(geometry, material);
             geometry.scale(1, 1, -1);
@@ -1591,24 +1609,27 @@ export class Viewer {
                 }
                 return false;
             };
+            if (this.enableMaskView) {
+                this.renderer.render( this.maskScene, this.camera );
+            } else {
+                this.renderer.setRenderTarget( this.maskRenderTarget );
 
-            this.renderer.setRenderTarget( this.maskRenderTarget );
+                this.renderer.render( this.maskScene, this.camera );
 
-            this.renderer.render( this.maskScene, this.camera );
+                this.splatMesh.material.uniforms.maskTexture.value = this.maskRenderTarget.texture;
+                this.splatMesh.material.uniformsNeedUpdate = true;
 
-            this.splatMesh.material.uniforms.maskTexture.value = this.maskRenderTarget.texture;
-            this.splatMesh.material.uniformsNeedUpdate = true;
-
-            this.renderer.setRenderTarget( null );
+                this.renderer.setRenderTarget( null );
   
-            if (hasRenderables(this.threeScene)) {
-                this.renderer.render(this.threeScene, this.camera);
+                if (hasRenderables(this.threeScene)) {
+                    this.renderer.render(this.threeScene, this.camera);
+                }
+
+                this.renderer.render(this.splatMesh, this.camera);
+
+                if (this.sceneHelper.getFocusMarkerOpacity() > 0.0) this.renderer.render(this.sceneHelper.focusMarker, this.camera);
+                if (this.showControlPlane) this.renderer.render(this.sceneHelper.controlPlane, this.camera);
             }
-
-            this.renderer.render(this.splatMesh, this.camera);
-
-            if (this.sceneHelper.getFocusMarkerOpacity() > 0.0) this.renderer.render(this.sceneHelper.focusMarker, this.camera);
-            if (this.showControlPlane) this.renderer.render(this.sceneHelper.controlPlane, this.camera);
 
             this.renderer.autoClear = true;
 
